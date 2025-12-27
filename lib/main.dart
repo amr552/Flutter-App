@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'webrtc_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -40,11 +38,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  final WebRTCService _webrtcService = WebRTCService();
-  final TextEditingController _roomController = TextEditingController();
-  bool _inCall = false;
+  String _myId = 'Registering...';
+  String _status = 'Ready to Call';
 
   @override
   void initState() {
@@ -57,7 +52,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
 
-    _webrtcService.initRenderers();
+    _initWebRTC();
+  }
+
+  void _initWebRTC() async {
+    await _webrtcService.initRenderers();
+    _webrtcService.zeroSignaling.onPeerIdGenerated = (id) {
+      setState(() => _myId = id);
+    };
+    _webrtcService.zeroSignaling.onConnectionStateChange = (state) {
+      setState(() => _status = state);
+      if (state == 'In Call') {
+        setState(() => _inCall = true);
+      } else if (state == 'Call Ended') {
+        setState(() => _inCall = false);
+      }
+    };
   }
 
   @override
@@ -68,22 +78,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  void _onCreateRoom() async {
-    await _webrtcService.openUserMedia();
-    String roomId = await _webrtcService.createRoom();
-    setState(() {
-      _roomController.text = roomId;
-      _inCall = true;
-    });
-  }
-
-  void _onJoinRoom() async {
+  void _onCall() async {
     if (_roomController.text.isNotEmpty) {
       await _webrtcService.openUserMedia();
-      await _webrtcService.joinRoom(_roomController.text);
-      setState(() {
-        _inCall = true;
-      });
+      _webrtcService.call(_roomController.text);
     }
   }
 
@@ -160,10 +158,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ),
                     ),
                     Text(
-                      _inCall ? 'Session: ${_roomController.text}' : 'Unique P2P WebRTC Experience',
+                      _inCall ? 'In Call' : 'My ID: $_myId',
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _status,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.white54,
                       ),
                     ),
                     if (!_inCall) ...[
@@ -213,9 +219,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         _buildCallAction(Icons.mic_off, 'Mute', Colors.white12, () {}),
                         _buildCallAction(
                           _inCall ? Icons.call_end : Icons.phone,
-                          _inCall ? 'End Call' : 'Start',
+                          _inCall ? 'End Call' : 'Call',
                           _inCall ? Colors.redAccent : Colors.greenAccent,
-                          _inCall ? _onHangUp : _onCreateRoom,
+                          _inCall ? _onHangUp : _onCall,
                         ),
                         _buildCallAction(Icons.videocam, 'Video', Colors.white12, () {}),
                       ],
