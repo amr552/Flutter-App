@@ -31,6 +31,7 @@ class WebRTCService {
     });
 
     onLocalStream(stream);
+    signaling.localStream = stream;
   }
 
   Future<String> createRoom() async {

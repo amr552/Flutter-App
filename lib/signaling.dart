@@ -53,6 +53,7 @@ class Signaling {
       event.streams[0].getTracks().forEach((track) {
         remoteStream?.addTrack(track);
       });
+      remoteRenderer.srcObject = event.streams[0];
     };
 
     // Listening for remote session description
@@ -110,6 +111,7 @@ class Signaling {
         event.streams[0].getTracks().forEach((track) {
           remoteStream?.addTrack(track);
         });
+        remoteRenderer.srcObject = event.streams[0];
       };
 
       var data = roomSnapshot.data() as Map<String, dynamic>;
